@@ -16,7 +16,7 @@
 /* The core of parsing is split into a pure C module, so that we can guarantee
  * that we won't be creating objects in the internal loops.
  */
-
+#include "Python.h"
 #include "_scanner_core.h"
 
 #ifndef Py_TYPE
@@ -98,7 +98,7 @@ _var_object_size(PyVarObject *c_obj)
         PyErr_Clear();
     }
     return _basic_object_size((PyObject *)c_obj)
-            + num_entries * c_obj->ob_type->tp_itemsize;
+            + num_entries * Py_TYPE(c_obj)->tp_itemsize;
 }
 
 static Py_ssize_t
@@ -207,7 +207,7 @@ _size_of_from_specials(PyObject *c_obj)
     if (special_size_of == NULL) {
         // if special_size_of is NULL, an exception is *not* set
         return -1;
-    } 
+    }
     // special_size_of is a *borrowed referenced*
     val = PyObject_CallFunction(special_size_of, "O", c_obj);
     if (val == NULL) {
@@ -438,7 +438,7 @@ _dump_unicode(struct ref_info *info, PyObject *c_obj)
 }
 
 
-void 
+void
 _dump_object_info(write_callback write, void *callee_data,
                   PyObject *c_obj, PyObject *nodump, int recurse)
 {
@@ -465,7 +465,7 @@ _dump_object_to_ref_info(struct ref_info *info, PyObject *c_obj, int recurse)
     int do_traverse;
     char *name;
 
-    if (info->nodump != NULL && 
+    if (info->nodump != NULL &&
         info->nodump != Py_None
         && PyAnySet_Check(info->nodump))
     {
@@ -512,11 +512,6 @@ _dump_object_to_ref_info(struct ref_info *info, PyObject *c_obj, int recurse)
     } else if (PyType_Check(c_obj)) {
         _write_static_to_info(info, ", \"name\": ");
         _dump_json_c_string(info, ((PyTypeObject *)c_obj)->tp_name, -1);
-    } else if (PyClass_Check(c_obj)) {
-        /* Old style class */
-        _write_static_to_info(info, ", \"name\": ");
-        _dump_string(info, ((PyClassObject *)c_obj)->cl_name);
-    }
     if (PyString_Check(c_obj)) {
         _write_to_ref_info(info, ", \"len\": " SSIZET_FMT, PyString_GET_SIZE(c_obj));
         _write_static_to_info(info, ", \"value\": ");
